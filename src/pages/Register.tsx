@@ -10,6 +10,7 @@ export default function Register() {
     username: '',
     email: '',
     phone: '',
+    jenis_kelamin: '', // Gender
     company: '', // Call Sign
     role: '',
     password: '',
@@ -57,7 +58,20 @@ export default function Register() {
       navigate('/login');
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      // Check if we have detailed validation errors
+      if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        // Format all validation errors into a readable message
+        const errorMessages = Object.entries(errors)
+          .map(([field, messages]: [string, any]) => {
+            const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ');
+            return Array.isArray(messages) ? `${fieldName}: ${messages.join(', ')}` : `${fieldName}: ${messages}`;
+          })
+          .join('\n');
+        setError(errorMessages);
+      } else {
+        setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      }
       setIsSubmitting(false);
     }
   };
@@ -182,6 +196,26 @@ export default function Register() {
                 placeholder="Enter phone number"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+              <div className="relative">
+                <select
+                  name="jenis_kelamin"
+                  value={formData.jenis_kelamin}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:bg-transparent focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all outline-none text-gray-800 appearance-none bg-white"
+                  required
+                >
+                  <option value="">Select your gender</option>
+                  <option value="L">Laki-laki (Male)</option>
+                  <option value="P">Perempuan (Female)</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
             </div>
 
             <div>

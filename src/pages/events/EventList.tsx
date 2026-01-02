@@ -52,7 +52,7 @@ export default function EventList() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Events Management</h1>
         <button
-          onClick={() => navigate('/admin/events/create')}
+          onClick={() => navigate('/dashboard/events/create')}
           className="flex items-center gap-2 bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
         >
           <Plus size={20} />
@@ -107,7 +107,7 @@ export default function EventList() {
                   <span className="text-xs text-gray-500">By {event.user?.username}</span>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigate(`/admin/events/edit/${event.id}`)}
+                      onClick={() => navigate(`/dashboard/events/edit/${event.id}`)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                     >
                       <Edit size={16} />

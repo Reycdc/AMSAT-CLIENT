@@ -79,7 +79,7 @@ export default function EventForm() {
       } else {
         await api.post('/events', data);
       }
-      navigate('/admin/events');
+      navigate('/dashboard/events');
     } catch (error: any) {
       alert('Failed to save: ' + (error.response?.data?.message || 'Unknown error'));
     } finally {

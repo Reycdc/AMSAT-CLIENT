@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import GuestGuard from './components/GuestGuard';
+import RoleRouteGuard from './components/RoleRouteGuard'; // Correctly imported
 import DashboardLayout from './layouts/DashboardLayout';
 import UserIndex from './pages/users/UserIndex';
 import MembershipIndex from './pages/membership/MembershipIndex';
@@ -18,6 +19,19 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import LandingPage from './pages/LandingPage';
 import AuthCallback from './pages/AuthCallback';
+
+// Message Pages
+import Inbox from './pages/message/Inbox';
+import Sent from './pages/message/Sent';
+import Draft from './pages/message/Draft';
+import Compose from './pages/message/Compose';
+
+// Sertifikat Pages
+import CreateSertifikat from './pages/certificates/CreateSertifikat';
+import EventsList from './pages/certificates/EventsList';
+import ParticipantsList from './pages/certificates/ParticipantsList';
+import ArticleRepository from './pages/article/ArticleRepository';
+import CertificateOffer from './pages/certificates/CertificateOffer';
 
 function App() {
   return (
@@ -41,13 +55,15 @@ function App() {
             </GuestGuard>
           } />
 
-          <Route path="/admin" element={
+          {/* Dynamic Role-Based Routes */}
+          <Route path="/:role" element={
             <ProtectedRoute>
-              <DashboardLayout />
+              <RoleRouteGuard>
+                <DashboardLayout />
+              </RoleRouteGuard>
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
+            <Route index element={<Dashboard />} />
             <Route path="users" element={<UserIndex />} />
             <Route path="membership" element={<MembershipIndex />} />
             <Route path="content" element={<ContentIndex />} />
@@ -60,6 +76,21 @@ function App() {
             <Route path="banners" element={<BannerManagement />} />
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="menus" element={<MenuManagement />} />
+
+            {/* Message Routes */}
+            <Route path="message/inbox" element={<Inbox />} />
+            <Route path="message/sent" element={<Sent />} />
+            <Route path="message/draft" element={<Draft />} />
+            <Route path="message/compose" element={<Compose />} />
+
+            {/* Sertifikat Routes */}
+            <Route path="sertifikat/create" element={<CreateSertifikat />} />
+            <Route path="sertifikat/events" element={<EventsList />} />
+            <Route path="sertifikat/participants" element={<ParticipantsList />} />
+            <Route path="certificate-offer" element={<CertificateOffer />} />
+
+            {/* Article Routes */}
+            <Route path="article" element={<ArticleRepository />} />
           </Route>
         </Routes>
       </BrowserRouter>
@@ -68,4 +99,3 @@ function App() {
 }
 
 export default App;
-

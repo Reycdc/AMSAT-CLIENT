@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, CheckCircle, XCircle } from 'lucide-react';
 
 interface Content {
   id: number;
@@ -10,7 +10,8 @@ interface Content {
   user: { username: string };
   menu?: { name: string };
   categories: { name: string }[];
-  is_verified?: string;
+  status: 'Pending' | 'Accept' | 'Reject';
+  redaktur?: { username: string };
   has_read: number;
 }
 
@@ -19,13 +20,14 @@ export default function ContentIndex() {
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { role } = useParams<{ role: string }>();
 
   const search = searchParams.get('search') || '';
 
   const fetchContent = async () => {
     setLoading(true);
     try {
-      const params = { search };
+      const params = { search, mode: 'dashboard' };
       const response = await api.get('/content', { params });
       setContents(response.data.data.data); // Pagination nested data
     } catch (error) {
@@ -38,6 +40,16 @@ export default function ContentIndex() {
   useEffect(() => {
     fetchContent();
   }, [search]);
+
+  const handleStatusChange = async (id: number, status: 'Accept' | 'Reject') => {
+    if (!confirm(`Are you sure you want to ${status} this content?`)) return;
+    try {
+      await api.post(`/content/${id}/verify`, { status });
+      fetchContent();
+    } catch (error) {
+      alert('Failed to update status');
+    }
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this content?')) return;
@@ -54,7 +66,7 @@ export default function ContentIndex() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Content Management</h1>
         <button
-          onClick={() => navigate('/admin/content/create')}
+          onClick={() => navigate(`/${role}/content/create`)}
           className="flex items-center gap-2 bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-200"
         >
           <Plus size={20} />
@@ -96,8 +108,22 @@ export default function ContentIndex() {
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900 line-clamp-1">{item.title}</div>
-                    <div className="text-xs text-gray-500">
-                      {item.is_verified ? <span className="text-green-600">Verified</span> : <span className="text-amber-600">Pending</span>}
+                    <div className="text-xs mt-1 flex items-center gap-2">
+                      {item.status === 'Accept' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                          Verified {item.redaktur && `by ${item.redaktur.username}`}
+                        </span>
+                      )}
+                      {item.status === 'Pending' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                          Pending Approval
+                        </span>
+                      )}
+                      {item.status === 'Reject' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                          Rejected
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">{item.user?.username}</td>
@@ -110,15 +136,42 @@ export default function ContentIndex() {
                     {new Date(item.date).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
+                    {/* Redaktur/Admin Actions */}
+                    {(role === 'admin' || role === 'redaktur') && (
+                      <>
+                        {item.status !== 'Accept' && (
+                          <button
+                            onClick={() => handleStatusChange(item.id, 'Accept')}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                            title="Approve"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                        )}
+                        {item.status !== 'Reject' && (
+                          <button
+                            onClick={() => handleStatusChange(item.id, 'Reject')}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Reject"
+                          >
+                            <XCircle size={16} />
+                          </button>
+                        )}
+                        <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                      </>
+                    )}
+
                     <button
-                      onClick={() => navigate(`/admin/content/edit/${item.id}`)}
+                      onClick={() => navigate(`/${role}/content/edit/${item.id}`)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                      title="Edit"
                     >
                       <Edit size={16} />
                     </button>
                     <button
                       onClick={() => handleDelete(item.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      title="Delete"
                     >
                       <Trash2 size={16} />
                     </button>

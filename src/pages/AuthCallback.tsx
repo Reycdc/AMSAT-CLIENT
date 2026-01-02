@@ -26,7 +26,7 @@ export default function AuthCallback() {
         localStorage.setItem('user', JSON.stringify(user));
 
         // Redirect to dashboard
-        navigate('/admin/dashboard');
+        navigate('/dashboard');
       } catch (err) {
         setError('Failed to process login data');
         setTimeout(() => navigate('/login'), 3000);

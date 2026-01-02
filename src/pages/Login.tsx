@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
+import { getUserRolePath } from '../utils/roleUtils'; // Import helper
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -16,11 +17,26 @@ export default function Login() {
     setError('');
     setIsSubmitting(true);
     try {
-      await login({ username, password });
-      // Navigate to dashboard after successful login
-      navigate('/admin/dashboard');
+      const response = await login({ username, password }) as any;
+      // Navigate to dashboard based on role
+      // login() returns the response data from API, including user
+      const userRole = getUserRolePath(response?.user || response?.data?.user);
+      navigate(`/${userRole}`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      // Check if we have detailed validation errors
+      if (err.response?.data?.errors) {
+        const errors = err.response.data.errors;
+        // Format all validation errors into a readable message
+        const errorMessages = Object.entries(errors)
+          .map(([field, messages]: [string, any]) => {
+            const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace('_', ' ');
+            return Array.isArray(messages) ? `${fieldName}: ${messages.join(', ')}` : `${fieldName}: ${messages}`;
+          })
+          .join('\n');
+        setError(errorMessages);
+      } else {
+        setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      }
     } finally {
       setIsSubmitting(false);
     }

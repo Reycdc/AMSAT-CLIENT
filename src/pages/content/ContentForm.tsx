@@ -1,14 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
-import { ChevronLeft, Save, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, Save, Image as ImageIcon, X } from 'lucide-react';
+import { getUserRolePath } from '../../utils/roleUtils';
+import { useAuth } from '../../hooks/useAuth';
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface Menu {
+  id: number;
+  title?: string;
+  label?: string;
+  name?: string;
+}
 
 export default function ContentForm() {
-  const { id } = useParams();
+  const { id, role } = useParams<{ id?: string; role: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
-  const [menus, setMenus] = useState<any[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -16,20 +34,31 @@ export default function ContentForm() {
     isi: '',
     date: new Date().toISOString().split('T')[0],
     menu_id: '',
-    cover: null as File | null
+    cover: null as File | null,
+    status: 'Pending' as 'Pending' | 'Accept' | 'Reject'
   });
 
   useEffect(() => {
     fetchMenus();
+    fetchCategories();
     if (isEdit) fetchContent();
   }, [id]);
 
   const fetchMenus = async () => {
     try {
       const response = await api.get('/menus/flat');
-      setMenus(response.data.data);
+      setMenus(response.data.data || []);
     } catch (error) {
-      console.error('Failed to fetch menus');
+      console.error('Failed to fetch menus:', error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/categories');
+      setCategories(response.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
     }
   };
 
@@ -42,15 +71,27 @@ export default function ContentForm() {
         title: data.title,
         isi: data.isi,
         date: data.date.split('T')[0],
-        menu_id: data.menu_id,
-        cover: null
+        menu_id: data.menu_id?.toString() || '',
+        cover: null,
+        status: data.status || 'Pending'
       });
-      // Handle existing cover logic if needed
+      // Set selected categories if available
+      if (data.categories) {
+        setSelectedCategories(data.categories.map((c: any) => c.id));
+      }
     } catch (error) {
       console.error('Failed to fetch content');
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleCategory = (categoryId: number) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,11 +103,22 @@ export default function ContentForm() {
     data.append('isi', formData.isi);
     data.append('date', formData.date);
     data.append('menu_id', formData.menu_id);
+
+    // Only append status if role is admin/redaktur
+    if (role === 'admin' || role === 'redaktur') {
+      data.append('status', formData.status);
+    }
+
+    // Append categories as array
+    selectedCategories.forEach(catId => {
+      data.append('category_ids[]', catId.toString());
+    });
+
     if (formData.cover) {
       data.append('cover', formData.cover);
     }
     if (isEdit) {
-      data.append('_method', 'PUT'); // Axios PUT with FormData workaround
+      data.append('_method', 'PUT');
     }
 
     try {
@@ -79,9 +131,17 @@ export default function ContentForm() {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }
-      navigate('/admin/content');
+
+      const currentRole = role || getUserRolePath(user);
+      navigate(`/${currentRole}/content`);
+
     } catch (error: any) {
-      alert('Failed to save: ' + (error.response?.data?.message || 'Unknown error'));
+      console.error('Upload error:', error);
+      const errorMessage = error.response?.data?.message ||
+        error.response?.data?.errors?.menu_id?.[0] ||
+        error.response?.data?.errors?.cover?.[0] ||
+        'Unknown error';
+      alert('Failed to save: ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -118,18 +178,23 @@ export default function ContentForm() {
 
         <div className="grid grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category (Menu)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Menu</label>
             <select
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500"
               value={formData.menu_id}
               onChange={(e) => setFormData({ ...formData, menu_id: e.target.value })}
             >
-              <option value="">Select Category</option>
-              {menus.map((menu: any) => (
-                <option key={menu.id} value={menu.id}>{menu.label}</option>
+              <option value="">Select Menu</option>
+              {menus.map((menu) => (
+                <option key={menu.id} value={menu.id}>
+                  {menu.label || menu.title || menu.name}
+                </option>
               ))}
             </select>
+            {menus.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">No menus available. Please create a menu first.</p>
+            )}
           </div>
 
           <div>
@@ -142,6 +207,52 @@ export default function ContentForm() {
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
             />
           </div>
+
+          {(role === 'admin' || role === 'redaktur') && (
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <select
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              >
+                <option value="Pending">Pending</option>
+                <option value="Accept">Verified (Accept)</option>
+                <option value="Reject">Rejected</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Categories Tags Section */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Tags / Categories</label>
+          <div className="flex flex-wrap gap-2 p-3 border border-gray-300 rounded-lg min-h-[50px] bg-gray-50">
+            {categories.length === 0 ? (
+              <span className="text-sm text-gray-400">No categories available</span>
+            ) : (
+              categories.map((category) => {
+                const isSelected = selectedCategories.includes(category.id);
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => toggleCategory(category.id)}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${isSelected
+                      ? 'bg-red-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:border-red-400 hover:text-red-600'
+                      }`}
+                  >
+                    {category.name}
+                    {isSelected && <X size={14} />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+          {selectedCategories.length > 0 && (
+            <p className="text-xs text-gray-500 mt-1">{selectedCategories.length} tag(s) selected</p>
+          )}
         </div>
 
         <div>

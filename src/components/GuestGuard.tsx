@@ -1,9 +1,10 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import React from 'react';
+import { getUserRolePath } from '../utils/roleUtils';
 
 export default function GuestGuard({ children }: { children: React.ReactElement }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -13,8 +14,9 @@ export default function GuestGuard({ children }: { children: React.ReactElement 
     );
   }
 
-  if (isAuthenticated) {
-    return <Navigate to="/admin/dashboard" replace />;
+  if (isAuthenticated && user) {
+    const rolePath = getUserRolePath(user);
+    return <Navigate to={`/${rolePath}`} replace />;
   }
 
   return children;
